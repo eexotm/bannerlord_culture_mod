@@ -24,7 +24,9 @@ namespace CulturalAssimilation
 
         // village StringId -> progress (0..100)
         private Dictionary<string, float> _progress = new Dictionary<string, float>();
-        // castle/town StringId -> days held by current owner
+        // castle/town StringId -> days held by current owner.
+        // Only settlements that changed hands while the mod was active are tracked; a missing entry
+        // means the owner is already established (e.g. mod added to an ongoing save), so no grace period.
         private Dictionary<string, float> _heldDays = new Dictionary<string, float>();
 
         public override void RegisterEvents()
@@ -35,12 +37,23 @@ namespace CulturalAssimilation
 
         public override void SyncData(IDataStore dataStore)
         {
-            // Serialize to strings: safest across game versions.
+            // Serialize to strings: safest across game versions, and the save stays loadable
+            // if the mod is removed later (no custom saveable types are registered).
             string progressStr = Serialize(_progress);
             string heldStr = Serialize(_heldDays);
 
-            dataStore.SyncData("CA_progress", ref progressStr);
-            dataStore.SyncData("CA_heldDays", ref heldStr);
+            try
+            {
+                dataStore.SyncData("CA_progress", ref progressStr);
+                dataStore.SyncData("CA_heldDays", ref heldStr);
+            }
+            catch (Exception e) when (dataStore.IsLoading)
+            {
+                // Save made before the mod was installed: start fresh instead of breaking the load.
+                Log("No saved assimilation data, starting fresh (" + e.Message + ")");
+                progressStr = null;
+                heldStr = null;
+            }
 
             if (dataStore.IsLoading)
             {
@@ -74,12 +87,17 @@ namespace CulturalAssimilation
             CultureObject ownerCulture = GetOwnerCulture(settlement);
             if (ownerCulture == null) return;
 
-            // Track how long the current owner has held it.
-            _heldDays.TryGetValue(settlement.StringId, out float held);
-            held += 1f;
-            _heldDays[settlement.StringId] = held;
-
-            if (held < GraceDays) return;
+            // Grace period after a capture. Untracked settlements are established holdings.
+            if (_heldDays.TryGetValue(settlement.StringId, out float held))
+            {
+                held += 1f;
+                if (held < GraceDays)
+                {
+                    _heldDays[settlement.StringId] = held;
+                    return;
+                }
+                _heldDays.Remove(settlement.StringId); // grace over: back to "established"
+            }
 
             float loyalty = settlement.Town != null ? settlement.Town.Loyalty : 100f;
             if (loyalty < MinLoyaltyToProgress) return; // unrest stalls assimilation

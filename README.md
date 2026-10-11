@@ -4,7 +4,9 @@ Villages slowly adopt the culture of whoever holds their bound castle or town.
 
 ## How it works
 - Every village has hidden progress (0-100) toward its owner's culture.
-- Progress only starts after the castle/town has been held for 30 days (`GraceDays`).
+- After a castle/town is captured, progress waits 30 days (`GraceDays`). Holdings that were
+  already owned when the mod was added (or at campaign start) count as established and
+  start progressing right away.
 - Base conversion takes about 90 days (`BaseDaysToConvert`), scaled by:
   - castle/town loyalty (stalls below 25, up to ~1.5x at 100)
   - governor (+10% if same culture as the owner, up to +15% from Charm)
@@ -13,6 +15,13 @@ Villages slowly adopt the culture of whoever holds their bound castle or town.
 - At 100: the village's culture changes, its notables' culture changes, and their
   stored old-culture volunteers are cleared so recruits regenerate from the new culture.
   Militia follows `Settlement.Culture`, so it changes too.
+
+## Adding to / removing from an ongoing save
+- **Adding:** safe. Load your save with the mod enabled; assimilation starts from 0 progress
+  for every village, with no grace period for settlements already held.
+- **Removing:** the mod only stores plain strings in the save (no custom saveable types),
+  so a save made with it should still load without it; its data is simply ignored.
+  Villages that already converted keep their new culture.
 
 ## Realm of Thrones
 Troops in RoT come from each culture's troop tree, so flipping the culture is what
@@ -36,6 +45,8 @@ Written against Bannerlord 1.2.x. If you are on a different version, namespaces 
   "has adopted ... ways" message appears.
 - Open the village's notables and confirm their volunteers match the new culture.
 - Save, reload, and confirm progress persists.
+- Load a save made *without* the mod, enable it, and confirm it loads cleanly and villages
+  under long-held castles start converting without the 30-day wait.
 
 ## Roadmap
 Loyalty unrest from culture mismatch, assimilate/tolerate/integrate policies,
