@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Module xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/BUTR/Bannerlord.XmlSchemas/master/SubModule.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name value="Cultural Assimilation" />
+  <Id value="CulturalAssimilation" />
+  <Version value="v0.1.0" />
+  <SingleplayerModule value="true" />
+  <MultiplayerModule value="false" />
+  <DependedModules>
+    <DependedModule Id="Native" />
+    <DependedModule Id="SandBoxCore" />
+    <DependedModule Id="Sandbox" />
+    <DependedModule Id="CustomBattle" />
+    <DependedModule Id="StoryMode" />
+    <!-- Load AFTER Realm of Thrones so its cultures and troop trees already exist.
+         Uncomment once you confirm the exact module Id in the RoT folder:
+    <DependedModule Id="RealmOfThrones" />
+    -->
+  </DependedModules>
+  <SubModules>
+    <SubModule>
+      <Name value="CulturalAssimilation" />
+      <DLLName value="CulturalAssimilation.dll" />
+      <SubModuleClassType value="CulturalAssimilation.SubModule" />
+      <Tags>
+        <Tag key="DedicatedServerType" value="none" />
+        <Tag key="IsNoRenderModeElement" value="false" />
+      </Tags>
+    </SubModule>
+  </SubModules>
+</Module>

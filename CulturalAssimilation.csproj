@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>CulturalAssimilation</AssemblyName>
+    <RootNamespace>CulturalAssimilation</RootNamespace>
+    <Nullable>disable</Nullable>
+    <PlatformTarget>x64</PlatformTarget>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+
+    <!-- EDIT THIS: your Bannerlord install folder (the one containing "bin" and "Modules") -->
+    <GameFolder>C:\Program Files (x86)\Steam\steamapps\common\Mount &amp; Blade II Bannerlord</GameFolder>
+    <GameBin>$(GameFolder)\bin\Win64_Shipping_Client</GameBin>
+
+    <!-- Build output goes straight into the game's Modules folder -->
+    <OutputPath>$(GameFolder)\Modules\CulturalAssimilation\bin\Win64_Shipping_Client\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="$(GameBin)\TaleWorlds.*.dll">
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="$(GameFolder)\Modules\SandBox\bin\Win64_Shipping_Client\SandBox*.dll">
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="$(GameFolder)\Modules\SandBoxCore\bin\Win64_Shipping_Client\SandBox*.dll">
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Copy SubModule.xml next to the DLL's module root after build -->
+  <Target Name="CopySubModuleXml" AfterTargets="Build">
+    <Copy SourceFiles="SubModule.xml" DestinationFolder="$(GameFolder)\Modules\CulturalAssimilation\" />
+  </Target>
+
+</Project>
