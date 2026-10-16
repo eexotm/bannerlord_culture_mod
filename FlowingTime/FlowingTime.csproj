@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>FlowingTime</AssemblyName>
+    <RootNamespace>FlowingTime</RootNamespace>
+    <Nullable>disable</Nullable>
+    <PlatformTarget>x64</PlatformTarget>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+    <!-- Game version to compile against. Match your installed Bannerlord version. -->
+    <GameVersion>1.2.12.77991</GameVersion>
+
+    <!-- Optional: set to your Bannerlord install folder to build straight into Modules\FlowingTime. -->
+    <GameFolder></GameFolder>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(GameFolder)' != ''">
+    <OutputPath>$(GameFolder)\Modules\FlowingTime\bin\Win64_Shipping_Client\</OutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Compile-time only: the game and the Harmony module supply these at runtime. -->
+    <PackageReference Include="Bannerlord.ReferenceAssemblies" Version="$(GameVersion)" PrivateAssets="all" IncludeAssets="compile" />
+    <PackageReference Include="Lib.Harmony" Version="2.2.2" PrivateAssets="all" IncludeAssets="compile" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <Target Name="CopySubModuleXml" AfterTargets="Build" Condition="'$(GameFolder)' != ''">
+    <Copy SourceFiles="SubModule.xml" DestinationFolder="$(GameFolder)\Modules\FlowingTime\" />
+  </Target>
+
+</Project>

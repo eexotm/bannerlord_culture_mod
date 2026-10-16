@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Module xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/BUTR/Bannerlord.XmlSchemas/master/SubModule.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name value="Flowing Time" />
+  <Id value="FlowingTime" />
+  <Version value="v0.0.1" />
+  <SingleplayerModule value="true" />
+  <MultiplayerModule value="false" />
+  <DependedModules>
+    <DependedModule Id="Bannerlord.Harmony" />
+    <DependedModule Id="Native" />
+    <DependedModule Id="SandBoxCore" />
+    <DependedModule Id="Sandbox" />
+  </DependedModules>
+  <SubModules>
+    <SubModule>
+      <Name value="FlowingTime" />
+      <DLLName value="FlowingTime.dll" />
+      <SubModuleClassType value="FlowingTime.SubModule" />
+      <Tags>
+        <Tag key="DedicatedServerType" value="none" />
+        <Tag key="IsNoRenderModeElement" value="false" />
+      </Tags>
+    </SubModule>
+  </SubModules>
+</Module>
