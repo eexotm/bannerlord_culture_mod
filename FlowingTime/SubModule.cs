@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using HarmonyLib;
+using TaleWorlds.CampaignSystem;
+using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
@@ -15,6 +17,19 @@ namespace FlowingTime
         {
             base.OnSubModuleLoad();
             ApplyPatches();
+        }
+
+        protected override void OnBeforeInitialModuleScreenSetAsRoot()
+        {
+            base.OnBeforeInitialModuleScreenSetAsRoot();
+            Log.FlushPending();
+        }
+
+        protected override void OnGameStart(Game game, IGameStarter gameStarterObject)
+        {
+            base.OnGameStart(game, gameStarterObject);
+            // New or loaded campaign: start paused, like vanilla, until the player starts time.
+            if (game.GameType is Campaign) TimeIntent.Reset();
         }
 
         /// <summary>
@@ -43,15 +58,25 @@ namespace FlowingTime
 
     internal static class Log
     {
-        public static void Info(string message)
-        {
-            InformationManager.DisplayMessage(new InformationMessage("[Flowing Time] " + message, Colors.Cyan));
-        }
+        // Messages raised before the UI exists are shown once the main menu is up.
+        private static List<string> _pending = new List<string>();
 
         public static void Error(string message)
         {
             Debug.Print("[FlowingTime] " + message);
-            InformationManager.DisplayMessage(new InformationMessage("[Flowing Time] " + message, Colors.Red));
+            if (_pending != null)
+                _pending.Add(message);
+            else
+                InformationManager.DisplayMessage(new InformationMessage("[Flowing Time] " + message, Colors.Red));
+        }
+
+        public static void FlushPending()
+        {
+            List<string> pending = _pending;
+            _pending = null;
+            if (pending == null) return;
+            foreach (string message in pending)
+                InformationManager.DisplayMessage(new InformationMessage("[Flowing Time] " + message, Colors.Red));
         }
     }
 }
