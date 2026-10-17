@@ -63,8 +63,10 @@ namespace FlowingTime.Patches
         private static void Prefix()
         {
             if (PatchStateFlags.Faulted) return;
+            long t = PerfStats.Begin();
             try { FlowGovernor.BeforeTickMapTime(); }
             catch (Exception e) { Guard.Fail("TickMapTime", e); }
+            PerfStats.End(t);
         }
     }
 
@@ -184,7 +186,9 @@ namespace FlowingTime.Patches
         // Runs every frame: plain try/catch, no delegate or closure.
         private static void Prefix(MapState __instance)
         {
+            PerfStats.FrameBoundary();
             if (!PatchState.AllActive) return;
+            long t = PerfStats.Begin();
             try
             {
                 if (FlowGovernor.MenuNeedsRefresh) Refresh(__instance);
@@ -194,6 +198,7 @@ namespace FlowingTime.Patches
             {
                 Guard.Fail("menu tick", e);
             }
+            PerfStats.End(t);
         }
 
         /// <summary>
@@ -228,8 +233,7 @@ namespace FlowingTime.Patches
         private static void Postfix(int speed)
         {
             if (CameraAnimationPatch.Active) return; // the game pausing for a camera move, not the player
-            bool inWaitMenu = Campaign.Current?.CurrentMenuContext?.GameMenu?.IsWaitActive ?? false;
-            TimeIntent.FromSpeed(speed, inWaitMenu);
+            TimeIntent.FromSpeed(speed);
         }
     }
 

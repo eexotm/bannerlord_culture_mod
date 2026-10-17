@@ -1,4 +1,4 @@
-# Flowing Time (Bannerlord mod, v0.2.0)
+# Flowing Time (Bannerlord mod, v0.2.1)
 
 Single-player mod: campaign time no longer pauses on its own. You still pause whenever you want.
 
@@ -16,7 +16,9 @@ overhaul mods already use.
   when they reach you. A message tells you when either side grows, and the menu updates.
 - **No arrival pause:** reaching your destination no longer stops the clock.
 - **Routine stops are undone:** when the game stops time only because a menu opened, changed or
-  closed, an encounter finished, or a wait ended, time resumes at the speed you had chosen.
+  closed, an encounter finished, or a wait ended, time resumes at normal speed. The mod never
+  fast-forwards on its own: travel fast-forward (double click) ends when you arrive, as in vanilla,
+  and only the keys or buttons fast-forward.
 - **Siege or tournament changes:** if a siege starts on the town you're in, or its tournament ends,
   the menu switches to the right one, the way vanilla's wait menus do.
 
@@ -56,6 +58,16 @@ same instead of crashing. Please report it when that happens.
 ## Settings
 For now the switches are fixed values in `Settings.cs`: `FlowInMenus`, `FlowInOwnBattles`,
 `JoinCheckIntervalHours`, `NoArrivalPause` and `FlowDuringPopups`.
+
+## Performance check
+Create an empty file named `perf.txt` in `Modules/FlowingTime/`. Every 10 seconds on the campaign map
+a yellow line then shows how long the mod's own code takes per frame, the map frame rate, and the
+current game speed. Delete the file to turn it off.
+
+The mod's own code is meant to cost a few microseconds per frame. If the game still feels slower
+than vanilla, it's because the world now keeps simulating in places where vanilla froze it (town
+and battle menus, after you arrive somewhere). That costs about the same as playing unpaused on the
+open map, more at fast-forward, and on big overhaul maps like Realm of Thrones that cost is real.
 
 ## Build
 `dotnet build -c Release` builds against BUTR's `Bannerlord.ReferenceAssemblies` package, so no game

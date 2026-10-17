@@ -158,16 +158,13 @@ namespace FlowingTime
             // mod, or by the player's keys at the menu) is this mod's to stop if a popup or siege appears.
             if (mapState.AtMenu && TimeIntent.IsRunning(mode)) _runningByUs = true;
 
-            TimeIntent.SyncSpeed(mode);
-
-            // Stoppable modes give no time while the party stands still: always the case at a settlement
-            // menu, and on the map once the party arrives.
+            // Stoppable modes give no time while the party stands still: always the case at a menu, and on
+            // the map once the party arrives. Keep the clock going at normal speed: travel fast-forward
+            // (double click) ends on arrival as in vanilla, instead of running the world at 4x indefinitely.
             if ((mode == CampaignTimeControlMode.StoppablePlay || mode == CampaignTimeControlMode.StoppableFastForward)
                 && (mapState.AtMenu || (Settings.NoArrivalPause && MobileParty.MainParty.ComputeIsWaiting())))
             {
-                campaign.TimeControlMode = mode == CampaignTimeControlMode.StoppableFastForward
-                    ? CampaignTimeControlMode.UnstoppableFastForward
-                    : CampaignTimeControlMode.UnstoppablePlay;
+                campaign.TimeControlMode = CampaignTimeControlMode.UnstoppablePlay;
                 _runningByUs = true;
             }
         }
@@ -248,6 +245,7 @@ namespace FlowingTime
         {
             if (menu == null) return false;
             if (menu.IsWaitActive) return true;
+            long t = PerfStats.Begin();
             try
             {
                 return PatchState.AllActive
@@ -258,6 +256,10 @@ namespace FlowingTime
             catch
             {
                 return false; // called from inside game code: never throw, fall back to vanilla
+            }
+            finally
+            {
+                PerfStats.End(t);
             }
         }
 
@@ -328,9 +330,9 @@ namespace FlowingTime
 
         private static void Restart(Campaign campaign)
         {
-            campaign.TimeControlMode = TimeIntent.FastForward
-                ? CampaignTimeControlMode.UnstoppableFastForward
-                : CampaignTimeControlMode.UnstoppablePlay;
+            // Always normal speed: the mod never fast-forwards on its own (the player can, with the keys or
+            // buttons). Running the whole campaign at 4x behind every menu is heavy on big overhaul maps.
+            campaign.TimeControlMode = CampaignTimeControlMode.UnstoppablePlay;
             _runningByUs = true;
             _suspendedByUs = false;
             _restartedSinceLastFrame = true;
