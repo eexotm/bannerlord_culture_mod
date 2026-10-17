@@ -43,9 +43,14 @@ namespace FlowingTime.Patches
             }
             catch (Exception e)
             {
-                PatchStateFlags.Faulted = true;
-                Log.Error("Switched off after an error in " + where + ": " + e.Message);
+                Fail(where, e);
             }
+        }
+
+        public static void Fail(string where, Exception e)
+        {
+            PatchStateFlags.Faulted = true;
+            Log.Error("Switched off after an error in " + where + ": " + e.Message);
         }
     }
 
@@ -54,7 +59,13 @@ namespace FlowingTime.Patches
     [HarmonyPatch(typeof(Campaign), "TickMapTime")]
     internal static class TickMapTimePatch
     {
-        private static void Prefix() => Guard.Run(FlowGovernor.BeforeTickMapTime, "TickMapTime");
+        // Runs every frame: plain try/catch, no delegate.
+        private static void Prefix()
+        {
+            if (PatchStateFlags.Faulted) return;
+            try { FlowGovernor.BeforeTickMapTime(); }
+            catch (Exception e) { Guard.Fail("TickMapTime", e); }
+        }
     }
 
     /// <summary>
@@ -134,11 +145,20 @@ namespace FlowingTime.Patches
             yield return AccessTools.Method(typeof(PlayerEncounter), nameof(PlayerEncounter.Finish), new[] { typeof(bool) });
         }
 
-        private static void Prefix() => Guard.Run(FlowGovernor.TransitionStart, "menu transition");
+        private static void Prefix()
+        {
+            if (PatchStateFlags.Faulted) return;
+            try { FlowGovernor.TransitionStart(); }
+            catch (Exception e) { Guard.Fail("menu transition", e); }
+        }
 
         private static Exception Finalizer(Exception __exception)
         {
-            Guard.Run(FlowGovernor.TransitionEnd, "menu transition");
+            if (!PatchStateFlags.Faulted)
+            {
+                try { FlowGovernor.TransitionEnd(); }
+                catch (Exception e) { Guard.Fail("menu transition", e); }
+            }
             return __exception;
         }
     }
@@ -161,7 +181,11 @@ namespace FlowingTime.Patches
     [HarmonyPatch(typeof(MapState), "OnTick")]
     internal static class MenuRefreshPatch
     {
-        private static void Prefix(MapState __instance) => Guard.Run(() => Refresh(__instance), "menu refresh");
+        private static void Prefix(MapState __instance)
+        {
+            // Runs every frame: check the flag before creating the closure, so the common case allocates nothing.
+            if (FlowGovernor.MenuNeedsRefresh) Guard.Run(() => Refresh(__instance), "menu refresh");
+        }
 
         private static void Refresh(MapState mapState)
         {

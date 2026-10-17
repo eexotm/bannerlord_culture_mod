@@ -1,4 +1,4 @@
-# Flowing Time (Bannerlord mod, v0.1.1)
+# Flowing Time (Bannerlord mod, v0.1.2)
 
 Single-player mod: campaign time no longer pauses on its own. You still pause whenever you want.
 
