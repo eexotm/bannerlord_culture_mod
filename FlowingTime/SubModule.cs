@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using FlowingTime.Patches;
 using HarmonyLib;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
@@ -28,13 +29,19 @@ namespace FlowingTime
         protected override void OnGameStart(Game game, IGameStarter gameStarterObject)
         {
             base.OnGameStart(game, gameStarterObject);
+            if (!(game.GameType is Campaign)) return;
+
             // New or loaded campaign: start paused, like vanilla, until the player starts time.
-            if (game.GameType is Campaign) TimeIntent.Reset();
+            TimeIntent.Reset();
+            FlowGovernor.Reset();
+            if (gameStarterObject is CampaignGameStarter starter)
+                starter.AddBehavior(new SettlementWatchBehavior());
         }
 
         /// <summary>
-        /// Applies each [HarmonyPatch] class on its own, so a patch that conflicts with another mod
-        /// (or a game update) only disables that one feature instead of the whole mod.
+        /// Applies each [HarmonyPatch] class on its own. The required ones only work together: if any of
+        /// them fails (another mod changed the same code, or a game update did), every patch is removed
+        /// and the game runs as vanilla. Optional ones just switch off their own small feature.
         /// </summary>
         private static void ApplyPatches()
         {
@@ -42,17 +49,38 @@ namespace FlowingTime
             var patchTypes = typeof(SubModule).Assembly.GetTypes()
                 .Where(t => t.GetCustomAttributes(typeof(HarmonyPatch), true).Length > 0);
 
+            string requiredFailure = null;
             foreach (Type type in patchTypes)
             {
+                bool required = type.GetCustomAttributes(typeof(RequiredPatchAttribute), false).Length > 0;
                 try
                 {
                     harmony.CreateClassProcessor(type).Patch();
                 }
                 catch (Exception e)
                 {
-                    Log.Error("Patch " + type.Name + " disabled: " + (e.InnerException ?? e).Message);
+                    string reason = type.Name + ": " + (e.InnerException ?? e).Message;
+                    if (required)
+                    {
+                        requiredFailure = reason;
+                        break;
+                    }
+                    Log.Error("Optional patch disabled: " + reason);
                 }
             }
+
+            if (requiredFailure == null && !PatchStateFlags.TickRewritten)
+                requiredFailure = "Campaign.Tick is not the code this version was written for";
+            if (requiredFailure == null && !PatchStateFlags.KeysRewritten)
+                requiredFailure = "MapScreen input is not the code this version was written for";
+
+            if (requiredFailure != null)
+            {
+                harmony.UnpatchAll(HarmonyId);
+                Log.Error("Switched off, the game runs as vanilla. Reason: " + requiredFailure);
+                return;
+            }
+            PatchStateFlags.CoreApplied = true;
         }
     }
 

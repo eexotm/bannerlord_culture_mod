@@ -4,8 +4,8 @@ namespace FlowingTime
 {
     /// <summary>
     /// What the player last asked the clock to do. Only player actions (pause key, speed keys, time bar
-    /// buttons, clicking to move) change it, so the game's automatic pauses can be told apart from the
-    /// player's own pause and undone.
+    /// buttons, starting to move) change it, so the game's automatic pauses can be told apart from the
+    /// player's own pause.
     /// </summary>
     internal static class TimeIntent
     {
@@ -21,8 +21,11 @@ namespace FlowingTime
             FastForward = false;
         }
 
-        /// <summary>Player used Campaign.SetTimeSpeed: 0 = pause, 1 = play, 2 = fast forward.</summary>
-        public static void FromSpeed(int speed)
+        /// <summary>
+        /// Player used Campaign.SetTimeSpeed: 0 = pause, 1 = play, 2 = fast forward. In a vanilla wait
+        /// menu the speed is forced by the wait, so only pause/resume is remembered there.
+        /// </summary>
+        public static void FromSpeed(int speed, bool inWaitMenu)
         {
             if (speed == 0)
             {
@@ -31,14 +34,14 @@ namespace FlowingTime
             else if (speed == 1 || speed == 2)
             {
                 WantsRunning = true;
-                FastForward = speed == 2;
+                if (!inWaitMenu) FastForward = speed == 2;
             }
         }
 
-        /// <summary>Player action left the clock in this mode (e.g. a time bar button or a map click).</summary>
+        /// <summary>Player action left the clock in this mode (a time bar button, starting to move).</summary>
         public static void FromMode(CampaignTimeControlMode mode)
         {
-            if (mode == CampaignTimeControlMode.Stop || mode == CampaignTimeControlMode.FastForwardStop)
+            if (!IsRunning(mode))
             {
                 WantsRunning = false;
             }
@@ -50,15 +53,12 @@ namespace FlowingTime
         }
 
         /// <summary>
-        /// Keeps the remembered speed in step with the clock while it runs, e.g. when a single map click
-        /// during fast forward drops back to normal play.
+        /// Keeps the remembered speed in step with the clock while it runs outside wait menus, e.g. a
+        /// double click switching to fast forward, or a single click dropping back to normal play.
         /// </summary>
         public static void SyncSpeed(CampaignTimeControlMode mode)
         {
-            if (WantsRunning && IsRunning(mode))
-            {
-                FastForward = IsFastForward(mode);
-            }
+            if (WantsRunning && IsRunning(mode)) FastForward = IsFastForward(mode);
         }
 
         public static bool IsRunning(CampaignTimeControlMode mode)

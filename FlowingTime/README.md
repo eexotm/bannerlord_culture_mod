@@ -1,25 +1,31 @@
-# Flowing Time (Bannerlord mod, v0.0.1)
+# Flowing Time (Bannerlord mod, v0.1.0)
 
 Single-player mod: campaign time no longer pauses on its own. You still pause whenever you want.
 
 Built for Bannerlord **1.3.15**. Requires the **Harmony** module (Bannerlord.Harmony), which most
 overhaul mods already use.
 
-## What works so far (stage 1: the campaign map and menus)
+## What works so far (stage 1: the campaign map and settlement menus)
 - **Town, castle and village menus:** time keeps running while you trade, recruit, manage the
   settlement, and so on. Space and the 1/2/3 speed keys work inside these menus too.
-- **Encounter menus** (attack / surrender / leave): time keeps running, so other parties keep moving
-  and can join the fight. The game never auto-resolves your own battle while it waits for you.
 - **No arrival pause:** reaching your destination no longer stops the clock.
-- **After the game stops time by itself** (entering or leaving a settlement, closing a menu, finishing
-  an encounter or a wait), time resumes at the speed you had chosen.
+- **Routine stops are undone:** when the game stops time only because a menu opened, changed or
+  closed, an encounter finished, or a wait ended, time resumes at the speed you had chosen.
+- **Siege or tournament changes:** if a siege starts on the town you're in, or its tournament ends,
+  the menu switches to the right one, the way vanilla's wait menus do.
 
-Time still stops for:
+Time still stops, exactly as in vanilla, for:
 - **Your own pause:** the Space key, the pause button, or the speed keys.
-- **Loading a save:** you start paused, as in vanilla, until you press play.
+- **Loading a save:** you start paused until you press play.
 - **The escape menu.**
-- **Popup decisions** (peace offers, ransom, marriage, heir selection, incidents), cheats and army
-  management. These lock the clock in vanilla and are left alone.
+- **Anything involving a battle:** encounter menus (attack / surrender / leave), menus for joining
+  someone else's battle, raids, sieges and sally-outs, and captivity. The menus stay valid this way,
+  and your troops never fight without you. Parties joining a battle mid-fight is planned for the
+  battle stages below.
+- **Deliberate game and quest pauses:** a menu or quest that stops time on purpose (for example
+  Revenue Farming events or the Rival Gang night meeting) stays paused until you press play.
+- **Popups and locked screens:** popup decisions (peace offers, ransom, marriage, heir selection,
+  incidents), cheats and army management.
 - **Conversations and battle simulation.**
 
 Vanilla "wait" menus (wait in town, sieges, captivity, waiting in an army) work as they always did.
@@ -35,13 +41,14 @@ Vanilla "wait" menus (wait in town, sieges, captivity, waiting in an army) work 
 The mod changes only *when* the clock runs. It doesn't reference any troop, culture, settlement or
 map by name, so it works with Realm of Thrones and other total-conversion mods.
 
-Each game patch is applied on its own. If one doesn't fit (another mod changed the same code, or a
-game update did), only that feature switches off and a red "[Flowing Time] ... disabled" message
-appears in the log. Please report it when that happens.
+The core patches only work together. If any of them doesn't fit (another mod changed the same code,
+or a game update did), the mod removes all of its patches, the game runs as vanilla, and a red
+"[Flowing Time] Switched off ..." message names the reason. An unexpected error at runtime does the
+same instead of crashing. Please report it when that happens.
 
 ## Settings
-For now the switches are constants in `Settings.cs` (`FlowInMenus`, `FlowDuringEncounters`,
-`NoArrivalPause`, `FlowDuringPopups`).
+For now the switches are fixed values in `Settings.cs`: `FlowInMenus`, `NoArrivalPause` and
+`FlowDuringPopups`.
 
 ## Build
 `dotnet build -c Release` builds against BUTR's `Bannerlord.ReferenceAssemblies` package, so no game
