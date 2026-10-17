@@ -81,6 +81,8 @@ namespace FlowingTime
                 return;
             }
             PatchStateFlags.CoreApplied = true;
+            if (!PatchStateFlags.ButtonsRewritten)
+                Log.Error("Optional patch disabled: the time bar buttons only work outside menus (use the keys in towns)");
         }
     }
 

@@ -27,6 +27,7 @@ namespace FlowingTime.Patches
         public static bool CoreApplied;
         public static bool TickRewritten;
         public static bool KeysRewritten;
+        public static bool ButtonsRewritten;
         public static bool Faulted;
     }
 
@@ -211,20 +212,18 @@ namespace FlowingTime.Patches
         }
     }
 
-    /// <summary>The pause/play/fast-forward buttons on the map bar.</summary>
+    /// <summary>
+    /// The pause/play/fast-forward buttons on the map bar only work outside menus or in active wait
+    /// menus (MapTimeControlVM.ExecuteTimeControlChange). Allow them in menus where time flows. They go
+    /// through Campaign.SetTimeSpeed, so SetTimeSpeedPatch records the player's choice.
+    /// Optional: without it, only the keys work inside settlement menus.
+    /// </summary>
     [HarmonyPatch(typeof(MapTimeControlVM), nameof(MapTimeControlVM.ExecuteTimeControlChange))]
     internal static class TimeControlButtonsPatch
     {
-        private static void Prefix(out CampaignTimeControlMode __state)
+        private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
         {
-            __state = Campaign.Current?.TimeControlMode ?? CampaignTimeControlMode.Stop;
-        }
-
-        private static void Postfix(CampaignTimeControlMode __state)
-        {
-            if (Campaign.Current == null) return;
-            CampaignTimeControlMode mode = Campaign.Current.TimeControlMode;
-            if (mode != __state) TimeIntent.FromMode(mode);
+            return IsWaitActiveRewriter.Rewrite(instructions, out PatchStateFlags.ButtonsRewritten);
         }
     }
 }

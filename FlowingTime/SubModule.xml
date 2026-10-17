@@ -2,7 +2,7 @@
 <Module xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/BUTR/Bannerlord.XmlSchemas/master/SubModule.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <Name value="Flowing Time" />
   <Id value="FlowingTime" />
-  <Version value="v0.1.0" />
+  <Version value="v0.1.1" />
   <SingleplayerModule value="true" />
   <MultiplayerModule value="false" />
   <DependedModules>

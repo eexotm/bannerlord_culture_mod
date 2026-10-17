@@ -1,4 +1,4 @@
-# Flowing Time (Bannerlord mod, v0.1.0)
+# Flowing Time (Bannerlord mod, v0.1.1)
 
 Single-player mod: campaign time no longer pauses on its own. You still pause whenever you want.
 
@@ -7,7 +7,8 @@ overhaul mods already use.
 
 ## What works so far (stage 1: the campaign map and settlement menus)
 - **Town, castle and village menus:** time keeps running while you trade, recruit, manage the
-  settlement, and so on. Space and the 1/2/3 speed keys work inside these menus too.
+  settlement, and so on. Space, the 1/2/3 speed keys and the time bar buttons work inside these
+  menus too.
 - **No arrival pause:** reaching your destination no longer stops the clock.
 - **Routine stops are undone:** when the game stops time only because a menu opened, changed or
   closed, an encounter finished, or a wait ended, time resumes at the speed you had chosen.
