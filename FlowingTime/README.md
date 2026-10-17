@@ -1,4 +1,4 @@
-# Flowing Time (Bannerlord mod, v0.2.1)
+# Flowing Time (Bannerlord mod, v0.3.0)
 
 Single-player mod: campaign time no longer pauses on its own. You still pause whenever you want.
 
@@ -39,12 +39,33 @@ Time still stops, exactly as in vanilla, for:
 
 Vanilla "wait" menus (wait in town, sieges, captivity, waiting in an army) work as they always did.
 
+## Reinforcements arriving mid-battle (field battles)
+When your field battle starts, the mod looks at the parties marching nearby on the campaign map:
+every party up to about four times vanilla's joining range that could join one side under the
+game's own rules (war and alliance status, not busy in another battle, siege or town).
+
+- **Arrival time** comes from each party's distance and speed: roughly one minute of battle per
+  in-game hour of marching, never earlier than 30 seconds after the fighting starts. At most the
+  4 nearest parties per side come.
+- **They enter from the direction they came from:** a party that was behind the enemy on the map
+  appears behind the enemy lines; one on your left comes in on your left flank. A message names
+  them and says where they arrive.
+- **They form their own formation and charge.** Yours appear in your order bar like any formation.
+  Formations you already use are never re-ordered.
+- **The battle size limit is always respected.** Arrivals only spawn into free slots (battle size
+  minus soldiers alive). The rest wait at the edge and come in as casualties free room, like
+  vanilla reinforcements. A side with arrivals still waiting isn't counted as wiped out.
+- **Casualties, wounds, loot, experience and the battle result** go through vanilla's normal battle
+  bookkeeping, because arrivals join the battle the way vanilla adds nearby parties.
+- **Only real battles:** conversations held during an encounter, sieges, raids, hideouts and naval
+  battles are left alone for now. Sieges are next: a relieving army attacking the besiegers from
+  outside.
+
 ## Planned
 2. Time keeps running on other screens: inventory, party, character, clan, kingdom and
    encyclopedia, plus conversations.
 3. Time keeps running inside scenes: town walks, taverns and battles.
-4. Parties that join your battle on the map arrive mid-fight as reinforcements, from the direction
-   they came.
+4. Sieges: a relieving army arriving from outside takes the besiegers in the flank.
 
 ## Compatibility
 The mod changes only *when* the clock runs. It doesn't reference any troop, culture, settlement or
@@ -57,7 +78,9 @@ same instead of crashing. Please report it when that happens.
 
 ## Settings
 For now the switches are fixed values in `Settings.cs`: `FlowInMenus`, `FlowInOwnBattles`,
-`JoinCheckIntervalHours`, `NoArrivalPause` and `FlowDuringPopups`.
+`JoinCheckIntervalHours`, `NoArrivalPause`, `FlowDuringPopups`, and for battles
+`MidBattleArrivals`, `ArrivalRadiusMultiplier`, `BattleSecondsPerCampaignHour`, `MinArrivalSeconds`,
+`MaxArrivalsPerSide` and `MaxSpawnPerWave`.
 
 ## Performance check
 Create an empty file named `perf.txt` in `Modules/FlowingTime/`. Every 10 seconds on the campaign map

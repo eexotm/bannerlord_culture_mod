@@ -39,6 +39,19 @@ namespace FlowingTime
                 starter.AddBehavior(new SettlementWatchBehavior());
         }
 
+        public override void OnMissionBehaviorInitialize(Mission mission)
+        {
+            base.OnMissionBehaviorInitialize(mission);
+            try
+            {
+                BattleArrivalsLogic.TryAttach(mission);
+            }
+            catch (Exception e)
+            {
+                Log.Error("Mid-battle arrivals unavailable: " + e.Message);
+            }
+        }
+
         /// <summary>
         /// Applies each [HarmonyPatch] class on its own. The required ones only work together: if any of
         /// them fails (another mod changed the same code, or a game update did), every patch is removed
@@ -82,6 +95,8 @@ namespace FlowingTime
                 return;
             }
             PatchStateFlags.CoreApplied = true;
+            if (!BattleArrivalsLogic.Reflected.Available)
+                Log.Error("Optional feature disabled: parties can't arrive during battles on this game version");
             if (!EncounterJoining.Available)
                 Log.Error("Optional feature disabled: parties arriving during your battle menu won't join it");
             if (!PatchStateFlags.ButtonsRewritten)

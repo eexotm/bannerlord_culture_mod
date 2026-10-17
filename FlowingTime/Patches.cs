@@ -12,6 +12,7 @@ using TaleWorlds.CampaignSystem.GameMenus;
 using TaleWorlds.CampaignSystem.GameState;
 using TaleWorlds.CampaignSystem.ViewModelCollection.Map.MapBar;
 using TaleWorlds.Core;
+using TaleWorlds.MountAndBlade;
 
 namespace FlowingTime.Patches
 {
@@ -215,6 +216,28 @@ namespace FlowingTime.Patches
             GameMenu menu = mapState.MenuContext?.GameMenu;
             if (menu == null || menu.IsWaitActive) return; // wait menus react on their own
             MenuHelper.DecideMenuState();
+        }
+    }
+
+    /// <summary>
+    /// A side with arrived reinforcements still waiting for room under the battle size limit is not wiped
+    /// out yet, exactly like a side with vanilla reserves left. Optional: without it, a battle can end
+    /// before waiting arrivals get to fight.
+    /// </summary>
+    [HarmonyPatch(typeof(MissionAgentSpawnLogic), nameof(MissionAgentSpawnLogic.IsSideDepleted))]
+    internal static class SideDepletedPatch
+    {
+        private static void Postfix(BattleSideEnum side, ref bool __result)
+        {
+            if (!__result) return;
+            try
+            {
+                if (BattleArrivalsLogic.Current != null && BattleArrivalsLogic.Current.HasWaitingTroops(side)) __result = false;
+            }
+            catch
+            {
+                // Leave vanilla's answer.
+            }
         }
     }
 
