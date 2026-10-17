@@ -34,6 +34,7 @@ namespace FlowingTime
             // New or loaded campaign: start paused, like vanilla, until the player starts time.
             TimeIntent.Reset();
             FlowGovernor.Reset();
+            EncounterJoining.Reset();
             if (gameStarterObject is CampaignGameStarter starter)
                 starter.AddBehavior(new SettlementWatchBehavior());
         }
@@ -81,6 +82,8 @@ namespace FlowingTime
                 return;
             }
             PatchStateFlags.CoreApplied = true;
+            if (!EncounterJoining.Available)
+                Log.Error("Optional feature disabled: parties arriving during your battle menu won't join it");
             if (!PatchStateFlags.ButtonsRewritten)
                 Log.Error("Optional patch disabled: the time bar buttons only work outside menus (use the keys in towns)");
         }

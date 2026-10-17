@@ -1,14 +1,19 @@
-# Flowing Time (Bannerlord mod, v0.1.2)
+# Flowing Time (Bannerlord mod, v0.2.0)
 
 Single-player mod: campaign time no longer pauses on its own. You still pause whenever you want.
 
 Built for Bannerlord **1.3.15**. Requires the **Harmony** module (Bannerlord.Harmony), which most
 overhaul mods already use.
 
-## What works so far (stage 1: the campaign map and settlement menus)
+## What works so far (stage 1: the campaign map, settlement menus and your battle menu)
 - **Town, castle and village menus:** time keeps running while you trade, recruit, manage the
   settlement, and so on. Space, the 1/2/3 speed keys and the time bar buttons work inside these
   menus too.
+- **Your own field battle menu** (Attack / Send troops / Try to get away / Surrender): time keeps
+  running. The game never fights your battle without you, so the enemy waits, but the world
+  doesn't: every 15 in-game minutes, parties that have arrived nearby join, allies on your side and
+  enemies on theirs, using the game's own joining rules. Enemies marching straight at you join
+  when they reach you. A message tells you when either side grows, and the menu updates.
 - **No arrival pause:** reaching your destination no longer stops the clock.
 - **Routine stops are undone:** when the game stops time only because a menu opened, changed or
   closed, an encounter finished, or a wait ended, time resumes at the speed you had chosen.
@@ -19,10 +24,11 @@ Time still stops, exactly as in vanilla, for:
 - **Your own pause:** the Space key, the pause button, or the speed keys.
 - **Loading a save:** you start paused until you press play.
 - **The escape menu.**
-- **Anything involving a battle:** encounter menus (attack / surrender / leave), menus for joining
-  someone else's battle, raids, sieges and sally-outs, and captivity. The menus stay valid this way,
-  and your troops never fight without you. Parties joining a battle mid-fight is planned for the
-  battle stages below.
+- **Other battle situations:** raids, sieges, sally-outs, hideouts, naval battles, menus for
+  joining someone else's battle, the menus after a battle, battles where you follow someone else's
+  army, and captivity. Letting time pass there makes the menus go stale (crashes) or resolves the
+  fight without you. Parties joining *inside* a battle scene, mid-fight, is planned for the battle
+  stages below.
 - **Deliberate game and quest pauses:** a menu or quest that stops time on purpose (for example
   Revenue Farming events or the Rival Gang night meeting) stays paused until you press play.
 - **Popups and locked screens:** popup decisions (peace offers, ransom, marriage, heir selection,
@@ -48,8 +54,8 @@ or a game update did), the mod removes all of its patches, the game runs as vani
 same instead of crashing. Please report it when that happens.
 
 ## Settings
-For now the switches are fixed values in `Settings.cs`: `FlowInMenus`, `NoArrivalPause` and
-`FlowDuringPopups`.
+For now the switches are fixed values in `Settings.cs`: `FlowInMenus`, `FlowInOwnBattles`,
+`JoinCheckIntervalHours`, `NoArrivalPause` and `FlowDuringPopups`.
 
 ## Build
 `dotnet build -c Release` builds against BUTR's `Bannerlord.ReferenceAssemblies` package, so no game

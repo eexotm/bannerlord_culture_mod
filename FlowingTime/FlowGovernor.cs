@@ -2,6 +2,7 @@ using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Encounters;
 using TaleWorlds.CampaignSystem.GameMenus;
 using TaleWorlds.CampaignSystem.GameState;
+using TaleWorlds.CampaignSystem.MapEvents;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
@@ -270,18 +271,58 @@ namespace FlowingTime
             if (campaign.ConversationManager != null && campaign.ConversationManager.IsConversationFlowActive) return false;
             if (!Settings.FlowDuringPopups && InformationManager.IsAnyInquiryActive()) return false;
 
-            // Anything involving a battle or captivity stays paused like vanilla: the player's own battle,
-            // a battle they are about to join, and captivity notices.
-            if (mainParty.MapEvent != null || PlayerCaptivity.IsCaptive) return false;
-            if (PlayerEncounter.EncounteredParty != null && PlayerEncounter.EncounteredBattle != null) return false;
+            // Battles: only the player's own field battle, at its decision menu, may flow. Raids, sieges,
+            // sally-outs, hideouts, a battle the player is about to join, and captivity stay paused like
+            // vanilla (their menus go stale or the battle resolves without the player when time passes).
+            MapEvent battle = mainParty.MapEvent;
+            if (battle != null && !IsOwnBattleAwaitingDecision(mapState, battle)) return false;
+            if (PlayerCaptivity.IsCaptive) return false;
+            if (PlayerEncounter.EncounteredParty != null)
+            {
+                MapEvent encounteredBattle = PlayerEncounter.EncounteredBattle;
+                if (encounteredBattle != null && encounteredBattle != battle) return false;
+            }
 
-            if (!mapState.AtMenu) return true;
+            if (!mapState.AtMenu) return battle == null;
             if (!Settings.FlowInMenus || mapState.MenuContext?.GameMenu == null) return false;
+            if (battle != null) return true;
 
-            // Menus: only inside a settlement that is not being fought over.
+            // Other menus: only inside a settlement that is not being fought over.
             Settlement settlement = mainParty.CurrentSettlement;
             if (settlement == null || settlement.SiegeEvent != null || settlement.Party?.MapEvent != null) return false;
             if (settlement.Town?.GarrisonParty?.MapEvent != null) return false; // sally out
+            return true;
+        }
+
+        /// <summary>
+        /// The main party's own field battle, waiting at its menu for the player's decision. The game skips
+        /// the player's own non-raid battle when it simulates battles (MapEventManager.Tick), so the enemy
+        /// waits; parties arriving meanwhile join (EncounterJoining).
+        /// </summary>
+        public static bool IsOwnBattleAwaitingDecision(MapState mapState, MapEvent battle)
+        {
+            if (!Settings.FlowInOwnBattles || !mapState.AtMenu) return false;
+            if (!battle.IsFieldBattle || battle.IsNavalMapEvent || battle.MapEventSettlement != null) return false;
+            if (battle.IsFinalized || battle.HasWinner || battle.BattleState != BattleState.None) return false;
+            if (PlayerEncounter.Current == null || PlayerEncounter.Battle != battle || PlayerEncounter.CurrentBattleSimulation != null) return false;
+
+            // In someone else's army the army leader decides, as in vanilla.
+            Army army = MobileParty.MainParty.Army;
+            if (army != null && army.LeaderParty != MobileParty.MainParty) return false;
+
+            // A party removed while in the battle (e.g. a quest party timing out) would leave the menu
+            // pointing at it: stop rather than let the player act on it.
+            return AllPartiesActive(battle, BattleSideEnum.Attacker) && AllPartiesActive(battle, BattleSideEnum.Defender);
+        }
+
+        private static bool AllPartiesActive(MapEvent battle, BattleSideEnum side)
+        {
+            var parties = battle.PartiesOnSide(side);
+            for (int i = 0; i < parties.Count; i++)
+            {
+                PartyBase party = parties[i].Party;
+                if (party == null || !party.IsActive || (party.IsMobile && !party.MobileParty.IsActive)) return false;
+            }
             return true;
         }
 

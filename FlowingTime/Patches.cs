@@ -181,22 +181,34 @@ namespace FlowingTime.Patches
     [HarmonyPatch(typeof(MapState), "OnTick")]
     internal static class MenuRefreshPatch
     {
+        // Runs every frame: plain try/catch, no delegate or closure.
         private static void Prefix(MapState __instance)
         {
-            // Runs every frame: check the flag before creating the closure, so the common case allocates nothing.
-            if (FlowGovernor.MenuNeedsRefresh) Guard.Run(() => Refresh(__instance), "menu refresh");
+            if (!PatchState.AllActive) return;
+            try
+            {
+                if (FlowGovernor.MenuNeedsRefresh) Refresh(__instance);
+                EncounterJoining.Tick(__instance);
+            }
+            catch (Exception e)
+            {
+                Guard.Fail("menu tick", e);
+            }
         }
 
+        /// <summary>
+        /// Rebuilds the open menu with vanilla's MenuHelper.DecideMenuState when the settlement changed
+        /// under it (see SettlementWatchBehavior).
+        /// </summary>
         private static void Refresh(MapState mapState)
         {
-            if (!FlowGovernor.MenuNeedsRefresh) return;
             if (Game.Current?.GameStateManager?.ActiveState != mapState || mapState.IsSimulationActive) return;
             if (mapState.MapConversationActive || (Campaign.Current?.ConversationManager?.IsConversationFlowActive ?? false)) return;
             if (Campaign.Current?.SaveHandler?.IsSaving ?? false) return;
 
             FlowGovernor.MenuNeedsRefresh = false;
             GameMenu menu = mapState.MenuContext?.GameMenu;
-            if (!PatchState.AllActive || menu == null || menu.IsWaitActive) return; // wait menus react on their own
+            if (menu == null || menu.IsWaitActive) return; // wait menus react on their own
             MenuHelper.DecideMenuState();
         }
     }
