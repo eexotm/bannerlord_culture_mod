@@ -67,6 +67,8 @@ namespace FlowingTime
         private readonly List<Arrival> _arrivals = new List<Arrival>();
         private MapEvent _battle;
         private Settlement _besieged;
+        // Per side: opening slots kept free for its held-back troops until they come out.
+        private readonly int[] _sallyReserve = new int[2];
         private float _battleStartTime = -1f;
         private float _nextCheckTime;
         private bool _disabled;
@@ -166,7 +168,16 @@ namespace FlowingTime
                 }
             }
 
-            PlanMarchingParties();
+            // A problem with a marching party must not cost the sallies already planned: those troops are
+            // out of vanilla's spawn plan, only this logic brings them in.
+            try
+            {
+                PlanMarchingParties();
+            }
+            catch (Exception e)
+            {
+                Log.Error("Parties marching nearby won't arrive in this battle: " + e.Message);
+            }
         }
 
         private void PlanMarchingParties()
@@ -287,7 +298,7 @@ namespace FlowingTime
             }
             if (held == 0) return;
             // Straight after the allocation, so the spawner never expects troops it can't get.
-            Reflected.HoldBack(spawnLogic, side, held);
+            _sallyReserve[(int)side] = Reflected.HoldBack(spawnLogic, side, held);
 
             Vec2 battlePosition = _battle.Position.ToVec2();
             foreach (var (members, troops) in planned)
@@ -328,27 +339,49 @@ namespace FlowingTime
             _nextCheckTime = Mission.CurrentTime + 1f;
 
             float elapsed = Mission.CurrentTime - _battleStartTime;
+            // A side with nobody left fighting on the field counts as retreating after a few seconds
+            // (BattleEndLogic), so its held-back troops come out at once rather than miss the battle.
+            bool defenderHolding = HasFighters(BattleSideEnum.Defender);
+            bool attackerHolding = HasFighters(BattleSideEnum.Attacker);
             foreach (Arrival arrival in _arrivals)
             {
-                if (!arrival.Started && elapsed >= arrival.DueSeconds) StartArrival(arrival);
+                if (!arrival.Started)
+                {
+                    bool sideHolding = arrival.Side == BattleSideEnum.Defender ? defenderHolding : attackerHolding;
+                    if (elapsed >= arrival.DueSeconds || (arrival.IsHeldBack && !sideHolding)) StartArrival(arrival, elapsed);
+                }
                 if (arrival.Started && arrival.Waiting.Count > 0) SpawnWave(arrival);
             }
         }
 
-        private void StartArrival(Arrival arrival)
+        /// <summary>Whether the side has a soldier on the field who isn't running away.</summary>
+        private bool HasFighters(BattleSideEnum side)
         {
-            arrival.Started = true;
+            foreach (Agent agent in Mission.Agents)
+                if (agent.IsHuman && agent.IsActive() && agent.Team != null && agent.Team.Side == side && !agent.IsRunningAway) return true;
+            return false;
+        }
+
+        private void StartArrival(Arrival arrival, float elapsed)
+        {
             if (arrival.IsHeldBack)
             {
-                // Already part of the battle: they only need a way onto the field.
+                // Already part of the battle: they only need a way onto the field. Keep trying for a while
+                // if there is none yet (e.g. one side momentarily has nobody on the field).
                 ChooseSpawnPoint(arrival);
                 if (!arrival.HasSpawnPoint) UseReinforcementEntry(arrival);
-                if (!arrival.HasSpawnPoint) return;
+                if (!arrival.HasSpawnPoint)
+                {
+                    if (elapsed > arrival.DueSeconds + 30f) arrival.Started = true; // give up: they sit this one out
+                    return;
+                }
+                arrival.Started = true;
                 Announce(arrival);
                 SpawnWave(arrival);
                 return;
             }
 
+            arrival.Started = true;
             MobileParty party = arrival.Party;
             if (_battle.IsFinalized || !IsEligible(party) || !_battle.CanPartyJoinBattle(party.Party, arrival.Side)) return;
 
@@ -395,7 +428,7 @@ namespace FlowingTime
             MissionAgentSpawnLogic spawnLogic = Mission.GetMissionBehavior<MissionAgentSpawnLogic>();
             if (spawnLogic == null) return;
 
-            int room = Math.Min(FreeSlots(spawnLogic, arrival.Side), Settings.MaxSpawnPerWave);
+            int room = Math.Min(FreeSlots(spawnLogic, arrival), Settings.MaxSpawnPerWave);
             if (room <= 0) return;
 
             bool isPlayerSide = arrival.Side == Mission.PlayerTeam.Side;
@@ -405,58 +438,66 @@ namespace FlowingTime
 
             Vec2 right = new Vec2(arrival.Facing.y, -arrival.Facing.x);
             int spawned = 0;
-            foreach (var group in batch.GroupBy(o => (Team: Mission.GetAgentTeam(o, isPlayerSide), Class: Mission.GetAgentTroopClass(arrival.Side, o.Troop))))
+            try
             {
-                Team team = group.Key.Team;
-                List<IAgentOriginBase> troops = group.ToList();
-
-                // Later waves of the same arrival join the formation its first wave formed.
-                if (!arrival.Formations.TryGetValue(group.Key, out Formation formation) || formation.CountOfUnits == 0)
+                foreach (var group in batch.GroupBy(o => (Team: Mission.GetAgentTeam(o, isPlayerSide), Class: Mission.GetAgentTroopClass(arrival.Side, o.Troop))))
                 {
-                    formation = PickFormation(team, group.Key.Class);
-                    arrival.Formations[group.Key] = formation;
-                }
-                bool ownFormation = formation.CountOfUnits == 0;
+                    Team team = group.Key.Team;
+                    List<IAgentOriginBase> troops = group.ToList();
 
-                if (ownFormation)
-                {
-                    bool mounted = withHorses && troops.Count(t => t.Troop.HasMount()) * 2 > troops.Count;
-                    formation.BeginSpawn(troops.Count, mounted);
-                    formation.SetPositioning(arrival.SpawnPosition, arrival.Facing, null);
-                    formation.HasBeenPositioned = true;
-                }
+                    // Later waves of the same arrival join the formation its first wave formed.
+                    if (!arrival.Formations.TryGetValue(group.Key, out Formation formation) || formation.CountOfUnits == 0)
+                    {
+                        formation = PickFormation(team, group.Key.Class);
+                        arrival.Formations[group.Key] = formation;
+                    }
+                    bool ownFormation = formation.CountOfUnits == 0;
 
-                for (int i = 0; i < troops.Count; i++)
-                {
-                    // A loose column at the battlefield edge.
-                    Vec2 offset = right * ((i % 10) - 4.5f) * 1.6f - arrival.Facing * (i / 10) * 1.8f;
-                    Vec2 p = arrival.SpawnPoint + offset;
-                    Vec3 position = new Vec3(p.x, p.y, Mission.Scene.GetGroundHeightAtPosition(new Vec3(p.x, p.y, 0f), BodyFlags.CommonCollisionExcludeFlags));
-                    Mission.SpawnTroop(troops[i], isPlayerSide, hasFormation: true, withHorses, isReinforcement: true, troops.Count, i,
-                        isAlarmed: true, wieldInitialWeapons: true, forceDismounted: false, position, arrival.Facing, null, null, formation.FormationIndex);
-                    spawned++;
-                }
+                    if (ownFormation)
+                    {
+                        bool mounted = withHorses && troops.Count(t => t.Troop.HasMount()) * 2 > troops.Count;
+                        formation.BeginSpawn(troops.Count, mounted);
+                        formation.SetPositioning(arrival.SpawnPosition, arrival.Facing, null);
+                        formation.HasBeenPositioned = true;
+                    }
 
-                if (formation.IsSpawning) formation.EndSpawn();
-                // Fresh formations charge in from their flank; never overrides orders of a formation already in use.
-                if (ownFormation) formation.SetMovementOrder(MovementOrder.MovementOrderCharge);
-                team.QuerySystem.Expire();
+                    for (int i = 0; i < troops.Count; i++)
+                    {
+                        // A loose column at the battlefield edge.
+                        Vec2 offset = right * ((i % 10) - 4.5f) * 1.6f - arrival.Facing * (i / 10) * 1.8f;
+                        Vec2 p = arrival.SpawnPoint + offset;
+                        Vec3 position = new Vec3(p.x, p.y, Mission.Scene.GetGroundHeightAtPosition(new Vec3(p.x, p.y, 0f), BodyFlags.CommonCollisionExcludeFlags));
+                        Mission.SpawnTroop(troops[i], isPlayerSide, hasFormation: true, withHorses, isReinforcement: true, troops.Count, i,
+                            isAlarmed: true, wieldInitialWeapons: true, forceDismounted: false, position, arrival.Facing, null, null, formation.FormationIndex);
+                        spawned++;
+                    }
+
+                    if (formation.IsSpawning) formation.EndSpawn();
+                    // Fresh formations charge in from their flank; never overrides orders of a formation already in use.
+                    if (ownFormation) formation.SetMovementOrder(MovementOrder.MovementOrderCharge);
+                    team.QuerySystem.Expire();
+                }
             }
-
-            // Keep the spawn logic's "troops alive on this side" count right, so it never thinks the side is
-            // wiped out while arrivals fight (their casualties are reported through the same troop supplier),
-            // and so the side's own reinforcements count them.
-            Reflected.AddSpawnedTroops(spawnLogic, arrival.Side, spawned);
+            finally
+            {
+                // Keep the spawn logic's "troops alive on this side" count right (also if a spawn failed
+                // halfway), so it never thinks the side is wiped out while arrivals fight (their casualties
+                // are reported through the same troop supplier), and so the side's own reinforcements count them.
+                Reflected.AddSpawnedTroops(spawnLogic, arrival.Side, spawned);
+                if (arrival.IsHeldBack) _sallyReserve[(int)arrival.Side] = Math.Max(0, _sallyReserve[(int)arrival.Side] - spawned);
+            }
         }
 
         /// <summary>
-        /// Slots under the battle size limit this side can fill now without the total ever going over it:
-        /// besides everyone alive, the other side's vanilla reinforcements may still bring it back up to its
-        /// opening strength, so those slots stay theirs. This side's own vanilla reinforcements only refill
-        /// what these troops leave free (they count towards its strength).
+        /// Slots under the battle size limit this arrival can fill now without the total ever going over it.
+        /// Besides everyone alive, these stay taken: troops vanilla has already lined up for its next wave on
+        /// either side, the reinforcements the other side may still bring back up to its opening strength,
+        /// and the opening share kept for each side's troops still to sally. This side's own future vanilla
+        /// waves only refill what these troops leave free (they count towards its strength).
         /// </summary>
-        private int FreeSlots(MissionAgentSpawnLogic spawnLogic, BattleSideEnum side)
+        private int FreeSlots(MissionAgentSpawnLogic spawnLogic, Arrival arrival)
         {
+            BattleSideEnum side = arrival.Side;
             BattleSideEnum other = side.GetOppositeSide();
             int aliveHere = 0, aliveThere = 0;
             foreach (Agent agent in Mission.Agents)
@@ -466,20 +507,43 @@ namespace FlowingTime
                 else if (agent.Team.Side == other) aliveThere++;
             }
 
-            int remainingThere = other == BattleSideEnum.Defender ? spawnLogic.NumberOfRemainingDefenderTroops : spawnLogic.NumberOfRemainingAttackerTroops;
-            int refillThere = remainingThere; // unknown refill rule: assume all of it can come
-            MissionSpawnSettings.ReinforcementSpawnMethod method = spawnLogic.ReinforcementSpawnSettings.ReinforcementTroopsSpawnMethod;
-            bool refillsToOpening = method == MissionSpawnSettings.ReinforcementSpawnMethod.Wave || method == MissionSpawnSettings.ReinforcementSpawnMethod.Balanced;
-            if (refillsToOpening && Reflected.TryGetPhase(spawnLogic, other, out _, out _, out int openingThere))
-            {
-                int activeThere = other == BattleSideEnum.Defender ? spawnLogic.NumberOfActiveDefenderTroops : spawnLogic.NumberOfActiveAttackerTroops;
-                refillThere = Math.Max(0, Math.Min(openingThere - activeThere, remainingThere));
-            }
-
-            int room = spawnLogic.BattleSize - aliveHere - aliveThere - refillThere;
+            int room = spawnLogic.BattleSize
+                - aliveHere - VanillaStillComing(spawnLogic, side, ownSide: true)
+                - aliveThere - VanillaStillComing(spawnLogic, other, ownSide: false)
+                - SallyReserve(other) - (arrival.IsHeldBack ? 0 : SallyReserve(side));
             // The engine's own agent limit; a rider takes two agents.
             int agentRoom = (MissionAgentSpawnLogic.MaxNumberOfAgentsForMission - spawnLogic.NumberOfAgents) / 2;
             return Math.Min(room, agentRoom);
+        }
+
+        /// <summary>
+        /// Troops vanilla may still put on the field for a side whatever we do: its lined-up wave, and for
+        /// the other side also the refill up to its opening strength. With a refill rule we don't know, or
+        /// without the spawner's numbers, everything it has left.
+        /// </summary>
+        private static int VanillaStillComing(MissionAgentSpawnLogic spawnLogic, BattleSideEnum side, bool ownSide)
+        {
+            int remaining = side == BattleSideEnum.Defender ? spawnLogic.NumberOfRemainingDefenderTroops : spawnLogic.NumberOfRemainingAttackerTroops;
+            MissionSpawnSettings.ReinforcementSpawnMethod method = spawnLogic.ReinforcementSpawnSettings.ReinforcementTroopsSpawnMethod;
+            bool refillsToOpening = method == MissionSpawnSettings.ReinforcementSpawnMethod.Wave || method == MissionSpawnSettings.ReinforcementSpawnMethod.Balanced;
+            if (!refillsToOpening || !Reflected.BudgetAvailable || !Reflected.TryGetPhase(spawnLogic, side, out _, out _, out int opening))
+                return remaining;
+
+            int lined = Math.Min(Reflected.ReservedTroops(spawnLogic, side), remaining);
+            if (ownSide) return lined;
+            int active = side == BattleSideEnum.Defender ? spawnLogic.NumberOfActiveDefenderTroops : spawnLogic.NumberOfActiveAttackerTroops;
+            return Math.Max(lined, Math.Max(0, Math.Min(opening - active, remaining)));
+        }
+
+        /// <summary>Opening slots still kept for a side's held-back troops (no more than are still to come).</summary>
+        private int SallyReserve(BattleSideEnum side)
+        {
+            int reserve = _sallyReserve[(int)side];
+            if (reserve <= 0) return 0;
+            int waiting = 0;
+            foreach (Arrival a in _arrivals)
+                if (a.IsHeldBack && a.Side == side) waiting += a.Waiting.Count;
+            return Math.Min(reserve, waiting);
         }
 
         /// <summary>An empty formation, preferring the extra slots, so arrivals form their own group.</summary>
@@ -653,6 +717,8 @@ namespace FlowingTime
             private static readonly FieldInfo InitialField = SpawnPhaseType == null ? null : AccessTools.Field(SpawnPhaseType, "InitialSpawnNumber");
             private static readonly FieldInfo InitialSpawnedField = SpawnPhaseType == null ? null : AccessTools.Field(SpawnPhaseType, "InitialSpawnedNumber");
             private static readonly FieldInfo RemainingField = SpawnPhaseType == null ? null : AccessTools.Field(SpawnPhaseType, "RemainingSpawnNumber");
+            // Troops vanilla has taken for its next wave but not spawned yet.
+            private static readonly MethodInfo ReservedCountGetter = MissionSideType == null ? null : AccessTools.PropertyGetter(MissionSideType, "ReservedTroopsCount");
             private static int _rank = 1_000_000;
 
             public static bool Available =>
@@ -662,6 +728,12 @@ namespace FlowingTime
             /// <summary>Needed for the sally from the walls and for the exact battle size count.</summary>
             public static bool PhasesAvailable =>
                 PhasesField != null && TotalField != null && InitialField != null && InitialSpawnedField != null && RemainingField != null;
+
+            /// <summary>Needed for the exact battle size count; without it the count assumes every remaining reserve can come.</summary>
+            public static bool BudgetAvailable => PhasesAvailable && ReservedCountGetter != null;
+
+            public static int ReservedTroops(MissionAgentSpawnLogic logic, BattleSideEnum side) =>
+                (int)ReservedCountGetter.Invoke(MissionSide(logic, side), null);
 
             public static void AddNearbyParty(MapEventSide side, MobileParty party) => AddNearbyPartyMethod.Invoke(side, new object[] { party });
 
@@ -697,9 +769,10 @@ namespace FlowingTime
 
             /// <summary>
             /// Takes troops the mod spawns itself out of the side's spawn plan, keeping their share of the
-            /// opening deployment free for them. Called before the opening deployment.
+            /// opening deployment free for them. Called before the opening deployment. Returns how many opening
+            /// slots were kept for them.
             /// </summary>
-            public static void HoldBack(MissionAgentSpawnLogic logic, BattleSideEnum side, int held)
+            public static int HoldBack(MissionAgentSpawnLogic logic, BattleSideEnum side, int held)
             {
                 object phase = ActivePhase(logic, side);
                 int total = (int)TotalField.GetValue(phase);
@@ -715,6 +788,7 @@ namespace FlowingTime
                 TotalField.SetValue(phase, newTotal);
                 InitialField.SetValue(phase, newInitial);
                 RemainingField.SetValue(phase, newTotal - newInitial);
+                return reserved;
             }
 
             private static object ActivePhase(MissionAgentSpawnLogic logic, BattleSideEnum side)
