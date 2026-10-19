@@ -97,6 +97,8 @@ namespace FlowingTime
             PatchStateFlags.CoreApplied = true;
             if (!BattleArrivalsLogic.Reflected.Available)
                 Log.Error("Optional feature disabled: parties can't arrive during battles on this game version");
+            else if (!BattleArrivalsLogic.Reflected.PhasesAvailable)
+                Log.Error("Optional feature disabled: garrisons can't sally out from the walls in relief battles on this game version");
             if (!EncounterJoining.Available)
                 Log.Error("Optional feature disabled: parties arriving during your battle menu won't join it");
             if (!PatchStateFlags.ButtonsRewritten)

@@ -1,4 +1,4 @@
-# Flowing Time (Bannerlord mod, v0.3.0)
+# Flowing Time (Bannerlord mod, v0.4.0)
 
 Single-player mod: campaign time no longer pauses on its own. You still pause whenever you want.
 
@@ -29,8 +29,7 @@ Time still stops, exactly as in vanilla, for:
 - **Other battle situations:** raids, sieges, sally-outs, hideouts, naval battles, menus for
   joining someone else's battle, the menus after a battle, battles where you follow someone else's
   army, and captivity. Letting time pass there makes the menus go stale (crashes) or resolves the
-  fight without you. Parties joining *inside* a battle scene, mid-fight, is planned for the battle
-  stages below.
+  fight without you. Reinforcements still arrive *inside* the battle scene (see below).
 - **Deliberate game and quest pauses:** a menu or quest that stops time on purpose (for example
   Revenue Farming events or the Rival Gang night meeting) stays paused until you press play.
 - **Popups and locked screens:** popup decisions (peace offers, ransom, marriage, heir selection,
@@ -39,8 +38,8 @@ Time still stops, exactly as in vanilla, for:
 
 Vanilla "wait" menus (wait in town, sieges, captivity, waiting in an army) work as they always did.
 
-## Reinforcements arriving mid-battle (field battles)
-When your field battle starts, the mod looks at the parties marching nearby on the campaign map:
+## Reinforcements arriving mid-battle (field battles and relief battles)
+When your battle starts, the mod looks at the parties marching nearby on the campaign map:
 every party up to about four times vanilla's joining range that could join one side under the
 game's own rules (war and alliance status, not busy in another battle, siege or town).
 
@@ -52,20 +51,39 @@ game's own rules (war and alliance status, not busy in another battle, siege or 
   them and says where they arrive.
 - **They form their own formation and charge.** Yours appear in your order bar like any formation.
   Formations you already use are never re-ordered.
-- **The battle size limit is always respected.** Arrivals only spawn into free slots (battle size
-  minus soldiers alive). The rest wait at the edge and come in as casualties free room, like
-  vanilla reinforcements. A side with arrivals still waiting isn't counted as wiped out.
+- **The battle size limit is always respected.** Arrivals only spawn into slots nobody else can
+  claim: battle size, minus everyone alive, minus the reinforcements the other side still has coming
+  under vanilla's rules. The rest wait at the edge and come in as casualties free room, like vanilla
+  reinforcements. A side with arrivals still waiting isn't counted as wiped out.
 - **Casualties, wounds, loot, experience and the battle result** go through vanilla's normal battle
   bookkeeping, because arrivals join the battle the way vanilla adds nearby parties.
-- **Only real battles:** conversations held during an encounter, sieges, raids, hideouts and naval
-  battles are left alone for now. Sieges are next: a relieving army attacking the besiegers from
-  outside.
+- **Only real battles:** conversations held during an encounter, assaults on the walls, raids,
+  hideouts and naval battles are left alone for now.
+
+## Relieving a siege: flank the besiegers
+When you attack an army besieging a town or castle from outside ("Assault the siege camp"), the
+game fights it on the open field next to the settlement, and the garrison may join you (vanilla
+decides that by comparing strength). In vanilla the garrison then simply stands next to you.
+
+With Flowing Time the garrison and the lords inside **sally out from the settlement's side**, 15 to
+90 seconds into the fight depending on how far the gate is. The besiegers are caught between your
+army and the garrison, and a message says where the defenders come in. The same works the other way
+round:
+- **You are the besieger** and a relief army attacks your camp: if the garrison sallies to help it,
+  the defenders come out behind your lines.
+- **You join an assault from outside** to help the town: the town's defenders come from the town.
+- **You sally out from inside the town:** your allies waiting outside come in from where they stand.
+
+The garrison keeps its share of the battle size: it is left out of the opening deployment and fills
+those slots when it comes out, so the limit is never exceeded. Parties marching nearby still arrive
+mid-battle from their direction, as in field battles. Assaults on the walls themselves are not
+changed yet.
 
 ## Planned
 2. Time keeps running on other screens: inventory, party, character, clan, kingdom and
    encyclopedia, plus conversations.
 3. Time keeps running inside scenes: town walks, taverns and battles.
-4. Sieges: a relieving army arriving from outside takes the besiegers in the flank.
+4. Assaults on the walls: relief armies arriving behind the besiegers during the assault.
 
 ## Compatibility
 The mod changes only *when* the clock runs. It doesn't reference any troop, culture, settlement or
@@ -80,7 +98,8 @@ same instead of crashing. Please report it when that happens.
 For now the switches are fixed values in `Settings.cs`: `FlowInMenus`, `FlowInOwnBattles`,
 `JoinCheckIntervalHours`, `NoArrivalPause`, `FlowDuringPopups`, and for battles
 `MidBattleArrivals`, `ArrivalRadiusMultiplier`, `BattleSecondsPerCampaignHour`, `MinArrivalSeconds`,
-`MaxArrivalsPerSide` and `MaxSpawnPerWave`.
+`MaxArrivalsPerSide`, `MaxSpawnPerWave`, and for relief battles `SiegeFlanking`, `SallyMinSeconds` and
+`SallyMaxSeconds`.
 
 ## Performance check
 Create an empty file named `perf.txt` in `Modules/FlowingTime/`. Every 10 seconds on the campaign map

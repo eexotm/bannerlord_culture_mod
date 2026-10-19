@@ -37,6 +37,18 @@ namespace FlowingTime
         /// <summary>Most troops spawned at once per arrival; never more than the battle size limit allows.</summary>
         public static readonly int MaxSpawnPerWave = 60;
 
+        /// <summary>
+        /// Relief battles at a besieged settlement: troops that start inside the walls (garrison, lords inside)
+        /// while their side attacks from outside sally out from the settlement's side, so the besiegers are
+        /// caught between them and the relief army. When the army fights from inside, its allies waiting
+        /// outside come in from where they stand.
+        /// </summary>
+        public static readonly bool SiegeFlanking = true;
+
+        /// <summary>Earliest and latest a sally (or a waiting ally) comes in, in seconds after the fighting starts.</summary>
+        public static readonly float SallyMinSeconds = 15f;
+        public static readonly float SallyMaxSeconds = 90f;
+
         /// <summary>Time keeps running when the party reaches its destination instead of auto-pausing.</summary>
         public static readonly bool NoArrivalPause = true;
 
